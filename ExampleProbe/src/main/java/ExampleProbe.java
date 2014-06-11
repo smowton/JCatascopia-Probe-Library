@@ -23,7 +23,7 @@ public class ExampleProbe extends Probe{
 		 */
 		
 		this.addProbeProperty(0,"curTimestamp",ProbePropertyType.LONG,"","Current Timestamp");
-		this.addProbeProperty(1,"myRandomMetric",ProbePropertyType.DOUBLE,"","Random Values");
+		this.addProbeProperty(1,"myRandomMetric",ProbePropertyType.DOUBLE,"%","Random Values");
 	}
 	
 	public ExampleProbe(){
