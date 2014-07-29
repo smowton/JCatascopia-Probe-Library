@@ -25,7 +25,7 @@ public class HAProxyProbe extends Probe{
 	private static String haproxy_url;
 	
 	private String proxy_name;
-	private long lastSessionCount;
+	HashMap<String,Integer> lastValues;
 	private long lasttime;
 	
 	private Properties config;
@@ -33,10 +33,14 @@ public class HAProxyProbe extends Probe{
 	@SuppressWarnings("restriction")
 	public HAProxyProbe(String name, int freq){
 		super(name,freq);
-		this.addProbeProperty(0,"currentSessions",ProbePropertyType.INTEGER,"","");
-		this.addProbeProperty(1,"requestThroughput",ProbePropertyType.DOUBLE,"req/s","");
-		this.addProbeProperty(2,"servers",ProbePropertyType.INTEGER,"","");
-	    
+		this.addProbeProperty(0,"activeSessions",ProbePropertyType.INTEGER,"","");
+		this.addProbeProperty(1,"requestRate",ProbePropertyType.DOUBLE,"req/s","");
+		this.addProbeProperty(2,"proxyBytesIN",ProbePropertyType.DOUBLE,"bytes/s","");
+		this.addProbeProperty(3,"proxyBytesOUT",ProbePropertyType.DOUBLE,"bytes/s","");
+		this.addProbeProperty(4,"avgResponseTime",ProbePropertyType.DOUBLE,"ms","");
+		this.addProbeProperty(5,"servers",ProbePropertyType.INTEGER,"","");
+		this.addProbeProperty(6,"errorRate",ProbePropertyType.DOUBLE,"err/s","");
+
 		parseConfig();
 	    String user = config.getProperty("haproxy_username", "user");
 	    String pass = config.getProperty("haproxy_password", "password");
@@ -48,12 +52,104 @@ public class HAProxyProbe extends Probe{
 		auth_header = "Basic " + new sun.misc.BASE64Encoder().encode(creds.getBytes());
 		haproxy_url = "http://"+ip+":"+port+"/haproxy?stats;csv";
 		
-		lastSessionCount = 0;
+		lastValues = this.calcValues();
 		lasttime = System.currentTimeMillis()/1000;		
 	}
 	
 	public HAProxyProbe(){
 		this("HAProxyProbe",20);
+	}
+			
+	@Override
+	public String getDescription() {
+		return "HAProxyProbe collect's HAProxy Load Balancer usage stats";
+	}
+
+	@Override
+	public ProbeMetric collect() {
+		int activeSessions = 0;
+		double requestRate = 0.0;
+		double avgResponseTime = 0.0;
+		double bytesIn = 0.0;
+		double bytesOut = 0.0;
+		double errorRate = 0.0;
+		int servers = 0;
+		
+		long curtime = System.currentTimeMillis()/1000;
+		HashMap<String,Integer> curValues = this.calcValues();
+
+	    long timediff = curtime-lasttime;
+		if (curValues != null && timediff >= 0){
+			activeSessions = curValues.get("scur");
+		    requestRate = (1.0 * (curValues.get("stot")-lastValues.get("stot")))/timediff;
+		    servers = curValues.get("servers");
+		    avgResponseTime = curValues.get("rtime")/servers;
+		    bytesIn = (1.0 * (curValues.get("bin")-lastValues.get("bin")))/timediff;
+		    bytesOut = (1.0 * (curValues.get("bout")-lastValues.get("bout")))/timediff;
+		    errorRate = (1.0 * (curValues.get("err")-lastValues.get("err")))/timediff;
+		}   
+		
+        HashMap<Integer,Object> values = new HashMap<Integer,Object>();
+        values.put(0, activeSessions);
+        values.put(1, requestRate);
+        values.put(2, bytesIn);
+        values.put(3, bytesOut);
+        values.put(4, avgResponseTime);
+        values.put(5, servers);
+        values.put(6, errorRate);
+	    
+        this.lasttime = curtime;
+        this.lastValues = curValues;
+        
+//	    for (Entry<Integer,Object> entry : values.entrySet()){
+//			System.out.println(entry.getKey()+" "+entry.getValue());
+//		}
+	    
+		return new ProbeMetric(values);
+	}
+	
+	private HashMap<String,Integer> calcValues(){
+		HashMap<String,Integer> statMap = new HashMap<String,Integer>();
+		try{
+			URL obj = new URL(haproxy_url);
+			HttpURLConnection conn = (HttpURLConnection) obj.openConnection();
+			conn.setRequestMethod("GET");		
+			conn.setRequestProperty("Authorization", auth_header);
+			BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+			String line;
+			
+			int scur = 0, stot = 0, servers = 0, err = 0, bin = 0, bout = 0, rtime = 0;
+			
+			if(conn.getResponseCode() == 200){
+				while ((line = in.readLine()) != null){
+					if(line.contains(this.proxy_name) && !line.contains("BACKEND") && !line.contains("FRONTEND")){
+						String[] tokenz = line.split(",");
+						scur += Integer.parseInt(tokenz[4]);
+						stot += Integer.parseInt(tokenz[7]);
+						bin += Integer.parseInt(tokenz[8]);
+						bout += Integer.parseInt(tokenz[9]);
+						err += Integer.parseInt(tokenz[13]);
+						err += Integer.parseInt(tokenz[14]);
+						rtime += Integer.parseInt(tokenz[60]);
+						servers++;
+						continue;
+					}
+				}
+				statMap.put("scur", scur);
+				statMap.put("stot", stot);
+				statMap.put("bin", bin);
+				statMap.put("bout", bout);
+				statMap.put("err", err);
+				statMap.put("servers", servers);
+				statMap.put("rtime", rtime);
+			}
+			in.close();			
+		}
+		catch(Exception e){
+			this.writeToProbeLog(Level.WARNING, e);
+			return null;
+		}
+		return statMap;
 	}
 	
 	//parse the configuration file
@@ -72,84 +168,6 @@ public class HAProxyProbe extends Probe{
 		catch (IOException e){
 			this.writeToProbeLog(Level.SEVERE,"config file parsing error");
 		}
-	}
-		
-	@Override
-	public String getDescription() {
-		return "HAProxyProbe collect's HAProxy Load Balancer usage stats.";
-	}
-
-	@Override
-	public ProbeMetric collect() {
-		HashMap<String,Integer> curValues = this.calcValues();
-		long curtime = System.currentTimeMillis()/1000;
-
-		int scur = 0;
-	    long sessionCount = 0;
-	    double requestThroughput = 0.0;
-	    int servers = 0;
-	    long t = curtime-lasttime;
-	    
-		if (curValues != null && t >= 0){
-			scur = curValues.get("scur");
-		    sessionCount = curValues.get("stot");
-		    requestThroughput = (1.0*(sessionCount - lastSessionCount))/t;
-		    servers = curValues.get("servers");
-		}
-		else{
-			scur = 0;
-			requestThroughput = 0.0;
-			sessionCount = 0;
-		}
-			
-		
-        HashMap<Integer,Object> values = new HashMap<Integer,Object>();
-        values.put(0, scur);
-        values.put(1, requestThroughput);
-        values.put(2, servers);
-	    
-        this.lasttime = curtime;
-        this.lastSessionCount = sessionCount;
-        
-//	    for (Entry<Integer,Object> entry : values.entrySet()){
-//			System.out.println(entry.getKey()+" "+entry.getValue());
-//		}
-	    
-		return new ProbeMetric(values);
-	}
-	
-	private HashMap<String,Integer> calcValues(){
-		HashMap<String,Integer> statMap = new HashMap<String,Integer>();
-		try{
-			URL obj = new URL(haproxy_url);
-			HttpURLConnection conn = (HttpURLConnection) obj.openConnection();
-			conn.setRequestMethod("GET");		
-			conn.setRequestProperty("Authorization", auth_header);
-			BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-			String line;
-			int scur = 0;
-			int stot = 0;
-			int servers = 0;
-			if(conn.getResponseCode() == 200){
-				while ((line = in.readLine()) != null){
-					if(line.contains(this.proxy_name) && !line.contains("BACKEND") && !line.contains("FRONTEND")){
-						scur += Integer.parseInt(line.split(",")[4]);
-						stot += Integer.parseInt(line.split(",")[7]);
-						servers++;
-						continue;
-					}
-				}
-				statMap.put("scur", scur);
-				statMap.put("stot", stot);
-				statMap.put("servers", servers);
-			}
-			in.close();			
-		}
-		catch(Exception e){
-			this.writeToProbeLog(Level.WARNING, e);
-			return null;
-		}
-		return statMap;
 	}
 	
 	/**
