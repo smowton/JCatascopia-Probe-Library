@@ -33,13 +33,13 @@ public class HAProxyProbe extends Probe{
 	@SuppressWarnings("restriction")
 	public HAProxyProbe(String name, int freq){
 		super(name,freq);
-		this.addProbeProperty(0,"activeSessions",ProbePropertyType.INTEGER,"","");
-		this.addProbeProperty(1,"requestRate",ProbePropertyType.DOUBLE,"req/s","");
-		this.addProbeProperty(2,"proxyBytesIN",ProbePropertyType.DOUBLE,"bytes/s","");
-		this.addProbeProperty(3,"proxyBytesOUT",ProbePropertyType.DOUBLE,"bytes/s","");
-		this.addProbeProperty(4,"avgResponseTime",ProbePropertyType.DOUBLE,"ms","");
-		this.addProbeProperty(5,"servers",ProbePropertyType.INTEGER,"","");
-		this.addProbeProperty(6,"errorRate",ProbePropertyType.DOUBLE,"err/s","");
+		this.addProbeProperty(0,"activeSessions",ProbePropertyType.INTEGER,"#","Number of active connections");
+		this.addProbeProperty(1,"requestRate",ProbePropertyType.DOUBLE,"req/s","Requests per second");
+		this.addProbeProperty(2,"proxyBytesIN",ProbePropertyType.DOUBLE,"bytes/s","Bytes IN per second");
+		this.addProbeProperty(3,"proxyBytesOUT",ProbePropertyType.DOUBLE,"bytes/s","Bytes OUT per second");
+		this.addProbeProperty(4,"avgResponseTime",ProbePropertyType.DOUBLE,"ms","Average response time in ms of all servers");
+		this.addProbeProperty(5,"servers",ProbePropertyType.INTEGER,"#","Number of servers behind proxy");
+		this.addProbeProperty(6,"errorRate",ProbePropertyType.DOUBLE,"err/s","Errors per second");
 
 		parseConfig();
 	    String user = config.getProperty("haproxy_username", "user");
