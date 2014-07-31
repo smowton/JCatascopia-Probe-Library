@@ -11,5 +11,6 @@
   	<module>../HAProxyProbe</module>
   	<module>../TomcatProbe</module>
   	<module>../RabbitMQProbe</module>
+  	<module>../PlaygenProbe</module>
   </modules>
 </project>
