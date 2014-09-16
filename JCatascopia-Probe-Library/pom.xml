@@ -12,5 +12,6 @@
   	<module>../TomcatProbe</module>
   	<module>../RabbitMQProbe</module>
   	<module>../PlaygenProbe</module>
+  	<module>../PostgresProbe</module>
   </modules>
 </project>
