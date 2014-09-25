@@ -34,8 +34,9 @@ public class CassandraProbe extends Probe{
 		while(i < ks.length){
 			this.addProbeProperty(j++,ks[i]+"_readLatency",ProbePropertyType.DOUBLE,"ms",ks[i]+" keyspace read latency");
 			this.addProbeProperty(j++,ks[i]+"_writeLatency",ProbePropertyType.DOUBLE,"ms",ks[i]+" keyspace write latency");
+			this.addProbeProperty(j++,ks[i]+"_load",ProbePropertyType.LONG,"Bytes",ks[i]+" keyspace total space used in bytes");
 			keyspaces.put(ks[i], c);
-			i++; c += 2;
+			i++; c += 3;
 		}
 		nodetool_path = config.getProperty("nodetool_path", "nodetool");
 	}
@@ -50,16 +51,19 @@ public class CassandraProbe extends Probe{
 				
 		HashMap<String,Double> temp = this.calcValues();
 		double r,w;
+		long b;
 		for(Entry<String, Integer> entry:keyspaces.entrySet()){
 			r = (temp.get(entry.getKey()+"_readLatency") != null) ? temp.get(entry.getKey()+"_readLatency") : Double.NaN;
 			w = (temp.get(entry.getKey()+"_writeLatency") != null) ? temp.get(entry.getKey()+"_writeLatency") : Double.NaN;
+			b = (temp.get(entry.getKey()+"_load") != null) ? temp.get(entry.getKey()+"_load").longValue() : -1;
 			values.put(entry.getValue(), r);
 			values.put(entry.getValue()+1, w);
+			values.put(entry.getValue()+2, b);
 		}
 
-		for(Entry<Integer,Object> entry:values.entrySet()){
-			System.out.println(entry.getKey()+" "+entry.getValue());
-		}
+//		for(Entry<Integer,Object> entry:values.entrySet()){
+//			System.out.println(entry.getKey()+" "+entry.getValue());
+//		}
 		
 		return new ProbeMetric(values);
 	}
@@ -83,6 +87,13 @@ public class CassandraProbe extends Probe{
 						b.readLine();
 						line = b.readLine();
 						stats.put(s+"_writeLatency", Double.parseDouble(line.split("\\s+")[3]));
+						
+						double size = 0;
+						while (!(line = b.readLine()).contains("----------------") && line != null){
+							if (line.contains("Space used (total), bytes:"))
+								size += Double.parseDouble(line.split(":")[1].trim());
+						}
+						stats.put(s+"_load", size);	
 					}
 				}
 			}
