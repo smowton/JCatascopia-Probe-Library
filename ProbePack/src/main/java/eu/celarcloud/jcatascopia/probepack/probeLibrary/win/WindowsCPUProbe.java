@@ -46,6 +46,13 @@ public class WindowsCPUProbe extends Probe{
 			  "\\Processor(_Total)\\% Privileged Time",
 			  "\\Processor(_Total)\\% Idle Time"
 	  });
+
+	private static ProbePropertyType[] probeTypes = new ProbePropertyType[] {
+		ProbePropertyType.DOUBLE,
+		ProbePropertyType.DOUBLE,
+		ProbePropertyType.DOUBLE,
+		ProbePropertyType.DOUBLE
+	};
 	
 	public WindowsCPUProbe(String name, int freq){
 		super(name,freq);
@@ -79,39 +86,7 @@ public class WindowsCPUProbe extends Probe{
 
 	public ProbeMetric collectOrThrow() throws IOException {
 
-		Process collector = new ProcessBuilder("Powershell.exe", "-Command", String.format("& {%s}", cpuTotalCommand)).start();
-		
-		InputStream is = collector.getInputStream();
-		InputStreamReader isr = new InputStreamReader(is);
-		BufferedReader br = new BufferedReader(isr);
-
-		HashMap<Integer,Object> values = new HashMap<Integer,Object>();
-		
-		String line;
-		int i = 0;
-		while((line = br.readLine()) != null) {
-
-			line = line.trim();
-			if(line.equals(""))
-				continue;
-
-			double val = Double.parseDouble(line);
-			values.put(i, val);
-			++i;
-
-		}
-
-		br.close();
-
-		InputStream eis = collector.getErrorStream();
-		InputStreamReader eisr = new InputStreamReader(eis);
-		int c;
-
-		while((c = eisr.read()) >= 0)
-			System.err.write(c);
-
-		eisr.close();
-		
+		HashMap<Integer, Object> values = PowershellHelper.powershellToStats(cpuTotalCommand, probeTypes);
 		return new ProbeMetric(values);
 
 	}

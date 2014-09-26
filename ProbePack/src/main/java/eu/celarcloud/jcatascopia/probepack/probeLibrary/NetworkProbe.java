@@ -45,8 +45,8 @@ public class NetworkProbe extends Probe{
 	public NetworkProbe(String name, int freq){
 		super(name,freq);
 		this.addProbeProperty(0,"netBytesIN",ProbePropertyType.DOUBLE,"bytes/s","Bytes IN per Second");
-		this.addProbeProperty(1,"netPacketsIN",ProbePropertyType.DOUBLE,"packets/s","Packets OUT per Second");
-		this.addProbeProperty(2,"netBytesOUT",ProbePropertyType.DOUBLE,"bytes/s","Bytes IN per Second");
+		this.addProbeProperty(1,"netPacketsIN",ProbePropertyType.DOUBLE,"packets/s","Packets IN per Second");
+		this.addProbeProperty(2,"netBytesOUT",ProbePropertyType.DOUBLE,"bytes/s","Bytes OUT per Second");
 		this.addProbeProperty(3,"netPacketsOut",ProbePropertyType.DOUBLE,"packets/s","Packets OUT per Second");
 	    
 		this.lastValues = this.calcValues();
