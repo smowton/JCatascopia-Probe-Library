@@ -39,8 +39,8 @@ public class WindowsMemoryProbe extends Probe{
 
 	private static String memoryCommand = PowershellHelper.makePowershellStatsCommand(
 		new String[] {
-			"\\Memory\\CommittedBytes",
-			"\\Memory\\AvailableBytes",
+			"\\Memory\\Committed Bytes",
+			"\\Memory\\Available Bytes",
 			"\\Paging File(_total)\\% Usage"
 		});
     
